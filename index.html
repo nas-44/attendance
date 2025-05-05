@@ -1,36 +1,116 @@
 <!DOCTYPE html><html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daily Attendance Tracker</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    h2 { margin-top: 40px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background-color: #f4f4f4; }
-    button { margin: 10px 0; padding: 10px 15px; }
-    input[type="date"] { padding: 5px; margin-bottom: 10px; }
-    select { padding: 5px; margin: 5px; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f1f5f9;
+      color: #111827;
+      padding: 20px;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    h1, h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+    label, select, input[type="date"], input[type="month"] {
+      width: 100%;
+      margin-top: 12px;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+    }
+    button {
+      width: 100%;
+      background-color: #2563eb;
+      color: white;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      margin-top: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    table {
+      width: 100%;
+      margin-top: 16px;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th {
+      background-color: #f3f4f6;
+    }
+    #customDateRange {
+      display: none;
+      margin-top: 12px;
+    }
   </style>
 </head>
 <body>
-  <h1>Student Daily Attendance</h1>
-  <label for="attendanceDate">Select Date:</label>
+  <div class="container">
+    <h1>Attendance Tracker</h1><div class="card">
+  <h2>Mark Attendance</h2>
+  <label for="attendanceDate">Select Date</label>
   <input type="date" id="attendanceDate" />
   <div id="attendanceTable"></div>
-  <button onclick="markAttendance()">Submit Attendance</button>  <h2>Download Reports</h2>
-  <label for="reportStudent">Select Student:</label>
-  <select id="reportStudent"></select><label for="reportType">Report Type:</label> <select id="reportType"> <option value="weekly">Weekly</option> <option value="monthly">Monthly</option> <option value="custom">Selected Days</option> </select>
+  <button onclick="markAttendance()">Submit Attendance</button>
+</div>
 
-  <div id="customDateRange" style="display: none;">
-    <label for="startDate">Start Date:</label>
+<div class="card">
+  <h2>Student Report</h2>
+  <select id="reportStudent"></select>
+  <select id="reportType">
+    <option value="weekly">Weekly</option>
+    <option value="monthly">Monthly</option>
+    <option value="custom">Custom Range</option>
+  </select>
+
+  <div id="customDateRange">
+    <label>Start Date</label>
     <input type="date" id="startDate" />
-    <label for="endDate">End Date:</label>
+    <label>End Date</label>
     <input type="date" id="endDate" />
-  </div><button onclick="downloadSelectedReport()">Download Report</button>
+  </div>
 
-  <script>
+  <button onclick="downloadStudentPDF()">Download Student PDF</button>
+</div>
+
+<div class="card">
+  <h2>Monthly Report</h2>
+  <label for="monthSelect">Select Month</label>
+  <input type="month" id="monthSelect" />
+  <button onclick="downloadAllStudentsPDF()">Download All Students PDF</button>
+</div>
+
+  </div>  <script>
     const students = [
       "Jinas Muhammed", "Rishad KP", "Faheem Ismayil", "Muhammed Shaban", "Muhammad Hadin", "Yaseen",
       "Fida Fathima KT", "Nasooha Jibin", "Ayisha Neha", "Muhsina", "Riya Fathima KV", "Fathima Ziya"
@@ -77,12 +157,16 @@
       });
     }
 
-    function downloadSelectedReport() {
+    document.getElementById('reportType').addEventListener('change', function () {
+      document.getElementById('customDateRange').style.display = this.value === 'custom' ? 'block' : 'none';
+    });
+
+    async function downloadStudentPDF() {
       const student = document.getElementById('reportStudent').value;
       const type = document.getElementById('reportType').value;
       const dates = attendanceData[student] || [];
-      let reportDates = [];
       const today = new Date();
+      let reportDates = [];
 
       if (type === 'weekly') {
         const weekAgo = new Date();
@@ -108,30 +192,46 @@
         });
       }
 
-      let csv = `Date,Present\n`;
-      const allDates = new Set(Object.values(attendanceData).flat());
-      const sortedDates = Array.from(allDates).sort();
-      sortedDates.forEach(date => {
-        if (type === 'custom') {
-          const d = new Date(date);
-          const start = new Date(document.getElementById('startDate').value);
-          const end = new Date(document.getElementById('endDate').value);
-          if (d < start || d > end) return;
-        }
-        if (type !== 'custom' && !reportDates.includes(date)) return;
-        csv += `${date},${dates.includes(date) ? 'Yes' : 'No'}\n`;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text(`Attendance Report - ${student}`, 14, 20);
+      doc.setFontSize(12);
+      reportDates.sort().forEach((date, i) => {
+        doc.text(`${i + 1}. ${date}: Present`, 14, 30 + i * 8);
       });
-
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `${student.replace(/ /g, '_')}_${type}_Attendance.csv`;
-      link.click();
+      doc.save(`${student.replace(/ /g, '_')}_report.pdf`);
     }
 
-    document.getElementById('reportType').addEventListener('change', function() {
-      document.getElementById('customDateRange').style.display = this.value === 'custom' ? 'block' : 'none';
-    });
+    async function downloadAllStudentsPDF() {
+      const selectedMonth = document.getElementById('monthSelect').value;
+      if (!selectedMonth) {
+        alert("Please select a month.");
+        return;
+      }
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text(`Monthly Attendance Report - ${selectedMonth}`, 14, 20);
+
+      let y = 30;
+      students.forEach((student, index) => {
+        const studentDates = (attendanceData[student] || []).filter(d => {
+          const dt = new Date(d);
+          return dt.getFullYear() === year && dt.getMonth() + 1 === month;
+        });
+        doc.setFontSize(12);
+        doc.text(`${index + 1}. ${student} - Present on ${studentDates.length} day(s)`, 14, y);
+        y += 8;
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+
+      doc.save(`Monthly_Report_${selectedMonth}.pdf`);
+    }
 
     generateTable();
     populateStudentSelector();
