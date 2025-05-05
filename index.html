@@ -136,7 +136,6 @@
         alert("Please select a date.");
         return;
       }
-      // Overwrite attendance for this date
       students.forEach(name => {
         if (!attendanceData[name]) attendanceData[name] = [];
         attendanceData[name] = attendanceData[name].filter(d => d !== dateInput);
@@ -161,24 +160,32 @@
       document.getElementById('customDateRange').style.display = this.value === 'custom' ? 'block' : 'none';
     });
 
-    async function downloadStudentPDF() {
+    function sortDates(dates) {
+      return [...dates].sort((a, b) => new Date(a) - new Date(b));
+    }
+
+    function filterDates(dates, from, to) {
+      return dates.filter(d => {
+        const dt = new Date(d);
+        return dt >= from && dt <= to;
+      });
+    }
+
+    function downloadStudentPDF() {
       const student = document.getElementById('reportStudent').value;
       const type = document.getElementById('reportType').value;
-      const dates = attendanceData[student] || [];
+      const allDates = attendanceData[student] || [];
       const today = new Date();
       let reportDates = [];
 
       if (type === 'weekly') {
         const weekAgo = new Date();
         weekAgo.setDate(today.getDate() - 7);
-        reportDates = dates.filter(d => new Date(d) >= weekAgo && new Date(d) <= today);
+        reportDates = filterDates(allDates, weekAgo, today);
       } else if (type === 'monthly') {
-        const month = today.getMonth();
-        const year = today.getFullYear();
-        reportDates = dates.filter(d => {
-          const dt = new Date(d);
-          return dt.getMonth() === month && dt.getFullYear() === year;
-        });
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        reportDates = filterDates(allDates, monthStart, monthEnd);
       } else if (type === 'custom') {
         const start = new Date(document.getElementById('startDate').value);
         const end = new Date(document.getElementById('endDate').value);
@@ -186,24 +193,23 @@
           alert("Please provide a valid date range.");
           return;
         }
-        reportDates = dates.filter(d => {
-          const dt = new Date(d);
-          return dt >= start && dt <= end;
-        });
+        reportDates = filterDates(allDates, start, end);
       }
+
+      reportDates = sortDates(reportDates);
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       doc.setFontSize(16);
       doc.text(`Attendance Report - ${student}`, 14, 20);
       doc.setFontSize(12);
-      reportDates.sort().forEach((date, i) => {
+      reportDates.forEach((date, i) => {
         doc.text(`${i + 1}. ${date}: Present`, 14, 30 + i * 8);
       });
       doc.save(`${student.replace(/ /g, '_')}_report.pdf`);
     }
 
-    async function downloadAllStudentsPDF() {
+    function downloadAllStudentsPDF() {
       const selectedMonth = document.getElementById('monthSelect').value;
       if (!selectedMonth) {
         alert("Please select a month.");
@@ -214,22 +220,23 @@
       const doc = new jsPDF();
       doc.setFontSize(16);
       doc.text(`Monthly Attendance Report - ${selectedMonth}`, 14, 20);
-
       let y = 30;
+
       students.forEach((student, index) => {
-        const studentDates = (attendanceData[student] || []).filter(d => {
+        const dates = attendanceData[student] || [];
+        const presentDates = dates.filter(d => {
           const dt = new Date(d);
           return dt.getFullYear() === year && dt.getMonth() + 1 === month;
         });
+        const sortedDates = sortDates(presentDates);
         doc.setFontSize(12);
-        doc.text(`${index + 1}. ${student} - Present on ${studentDates.length} day(s)`, 14, y);
+        doc.text(`${index + 1}. ${student} - Present on ${sortedDates.length} day(s)`, 14, y);
         y += 8;
         if (y > 270) {
           doc.addPage();
           y = 20;
         }
       });
-
       doc.save(`Monthly_Report_${selectedMonth}.pdf`);
     }
 
