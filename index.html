@@ -136,12 +136,12 @@
         alert("Please select a date.");
         return;
       }
+      // Overwrite attendance for this date
       students.forEach(name => {
-        const present = document.getElementById(name).checked;
         if (!attendanceData[name]) attendanceData[name] = [];
-        if (present && !attendanceData[name].includes(dateInput)) {
-          attendanceData[name].push(dateInput);
-        }
+        attendanceData[name] = attendanceData[name].filter(d => d !== dateInput);
+        const present = document.getElementById(name).checked;
+        if (present) attendanceData[name].push(dateInput);
       });
       localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
       alert("Attendance recorded for " + dateInput);
