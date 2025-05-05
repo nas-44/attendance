@@ -1,0 +1,139 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Attendance Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h2 { margin-top: 40px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f4f4f4; }
+    button { margin: 10px 0; padding: 10px 15px; }
+    input[type="date"] { padding: 5px; margin-bottom: 10px; }
+    select { padding: 5px; margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Student Daily Attendance</h1>
+  <label for="attendanceDate">Select Date:</label>
+  <input type="date" id="attendanceDate" />
+  <div id="attendanceTable"></div>
+  <button onclick="markAttendance()">Submit Attendance</button>  <h2>Download Reports</h2>
+  <label for="reportStudent">Select Student:</label>
+  <select id="reportStudent"></select><label for="reportType">Report Type:</label> <select id="reportType"> <option value="weekly">Weekly</option> <option value="monthly">Monthly</option> <option value="custom">Selected Days</option> </select>
+
+  <div id="customDateRange" style="display: none;">
+    <label for="startDate">Start Date:</label>
+    <input type="date" id="startDate" />
+    <label for="endDate">End Date:</label>
+    <input type="date" id="endDate" />
+  </div><button onclick="downloadSelectedReport()">Download Report</button>
+
+  <script>
+    const students = [
+      "Jinas Muhammed", "Rishad KP", "Faheem Ismayil", "Muhammed Shaban", "Muhammad Hadin", "Yaseen",
+      "Fida Fathima KT", "Nasooha Jibin", "Ayisha Neha", "Muhsina", "Riya Fathima KV", "Fathima Ziya"
+    ];
+
+    let attendanceData = JSON.parse(localStorage.getItem('attendanceData') || '{}');
+
+    function generateTable() {
+      const table = document.createElement('table');
+      const thead = table.insertRow();
+      thead.innerHTML = `<th>Name</th><th>Present?</th>`;
+      students.forEach(name => {
+        const row = table.insertRow();
+        row.innerHTML = `<td>${name}</td><td><input type="checkbox" id="${name}"></td>`;
+      });
+      document.getElementById('attendanceTable').innerHTML = '';
+      document.getElementById('attendanceTable').appendChild(table);
+    }
+
+    function markAttendance() {
+      const dateInput = document.getElementById('attendanceDate').value;
+      if (!dateInput) {
+        alert("Please select a date.");
+        return;
+      }
+      students.forEach(name => {
+        const present = document.getElementById(name).checked;
+        if (!attendanceData[name]) attendanceData[name] = [];
+        if (present && !attendanceData[name].includes(dateInput)) {
+          attendanceData[name].push(dateInput);
+        }
+      });
+      localStorage.setItem('attendanceData', JSON.stringify(attendanceData));
+      alert("Attendance recorded for " + dateInput);
+    }
+
+    function populateStudentSelector() {
+      const select = document.getElementById('reportStudent');
+      students.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+    }
+
+    function downloadSelectedReport() {
+      const student = document.getElementById('reportStudent').value;
+      const type = document.getElementById('reportType').value;
+      const dates = attendanceData[student] || [];
+      let reportDates = [];
+      const today = new Date();
+
+      if (type === 'weekly') {
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 7);
+        reportDates = dates.filter(d => new Date(d) >= weekAgo && new Date(d) <= today);
+      } else if (type === 'monthly') {
+        const month = today.getMonth();
+        const year = today.getFullYear();
+        reportDates = dates.filter(d => {
+          const dt = new Date(d);
+          return dt.getMonth() === month && dt.getFullYear() === year;
+        });
+      } else if (type === 'custom') {
+        const start = new Date(document.getElementById('startDate').value);
+        const end = new Date(document.getElementById('endDate').value);
+        if (!start || !end || start > end) {
+          alert("Please provide a valid date range.");
+          return;
+        }
+        reportDates = dates.filter(d => {
+          const dt = new Date(d);
+          return dt >= start && dt <= end;
+        });
+      }
+
+      let csv = `Date,Present\n`;
+      const allDates = new Set(Object.values(attendanceData).flat());
+      const sortedDates = Array.from(allDates).sort();
+      sortedDates.forEach(date => {
+        if (type === 'custom') {
+          const d = new Date(date);
+          const start = new Date(document.getElementById('startDate').value);
+          const end = new Date(document.getElementById('endDate').value);
+          if (d < start || d > end) return;
+        }
+        if (type !== 'custom' && !reportDates.includes(date)) return;
+        csv += `${date},${dates.includes(date) ? 'Yes' : 'No'}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${student.replace(/ /g, '_')}_${type}_Attendance.csv`;
+      link.click();
+    }
+
+    document.getElementById('reportType').addEventListener('change', function() {
+      document.getElementById('customDateRange').style.display = this.value === 'custom' ? 'block' : 'none';
+    });
+
+    generateTable();
+    populateStudentSelector();
+  </script></body>
+</html>
