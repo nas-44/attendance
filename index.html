@@ -88,7 +88,6 @@
   <h2>Student Report</h2>
   <select id="reportStudent"></select>
   <select id="reportType">
-    <option value="weekly">Weekly</option>
     <option value="monthly">Monthly</option>
     <option value="custom">Custom Range</option>
   </select>
@@ -178,11 +177,7 @@
       const today = new Date();
       let reportDates = [];
 
-      if (type === 'weekly') {
-        const weekAgo = new Date();
-        weekAgo.setDate(today.getDate() - 7);
-        reportDates = filterDates(allDates, weekAgo, today);
-      } else if (type === 'monthly') {
+      if (type === 'monthly') {
         const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
         const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         reportDates = filterDates(allDates, monthStart, monthEnd);
